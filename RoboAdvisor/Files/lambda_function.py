@@ -3,16 +3,6 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 ### Functionality Helper Functions ###
-def parse_int(n):
-    """
-    Securely converts a non-integer value to integer.
-    """
-    try:
-        return int(n)
-    except ValueError:
-        return float("nan")
-
-
 def build_validation_result(is_valid, violated_slot, message_content):
     """
     Define a result message structured as Lex response.
@@ -97,9 +87,24 @@ def recommend_portfolio(intent_request):
         # Use the elicitSlot dialog action to re-prompt
         # for the first violation detected.
 
-        ### YOUR DATA VALIDATION CODE STARTS HERE ###
-
-        ### YOUR DATA VALIDATION CODE ENDS HERE ###
+        ###DATA VALIDATION CODE STARTS HERE ###
+        if age is not None:
+            if int(age) < 0 or int(age) > 65:
+                return build_validation_result(
+                    False,
+                    "age",
+                    "Invalid age, must be greater than zero and less than 65.",
+                )
+            
+        if investment_amount is not None:
+            investment_amount = float(investment_amount)  # Since parameters are strings it's important to cast values
+            if investment_amount < 5000:
+                return build_validation_result(
+                    False,
+                    "investment_amount",
+                    "The amount to invest must be equal to or greater than 5000, please provide a valid investment amount.",
+                )
+        ###DATA VALIDATION CODE ENDS HERE ###
 
         # Fetch current session attibutes
         output_session_attributes = intent_request["sessionAttributes"]
@@ -107,10 +112,16 @@ def recommend_portfolio(intent_request):
         return delegate(output_session_attributes, get_slots(intent_request))
 
     # Get the initial investment recommendation
-
-    ### YOUR FINAL INVESTMENT RECOMMENDATION CODE STARTS HERE ###
-
-    ### YOUR FINAL INVESTMENT RECOMMENDATION CODE ENDS HERE ###
+    initial_recommendation = "100% bonds (AGG), 0% equities (SPY)"
+    ### FINAL INVESTMENT RECOMMENDATION CODE STARTS HERE ###
+    risk_level = str.lower(risk_level)
+    if risk_level == "none": initial_recommendation = "100% bonds (AGG), 0% equities (SPY)"
+    elif risk_level == "very low": initial_recommendation = "80% bonds (AGG), 20% equities (SPY)"
+    elif risk_level == "low": initial_recommendation = "60% bonds (AGG), 40% equities (SPY)"
+    elif risk_level == "moderate": initial_recommendation = "40% bonds (AGG), 60% equities (SPY)"
+    elif risk_level == "high": initial_recommendation = "20% bonds (AGG), 80% equities (SPY)"
+    elif risk_level == "very high": initial_recommendation = "0% bonds (AGG), 100% equities (SPY)"
+    ### FINAL INVESTMENT RECOMMENDATION CODE ENDS HERE ###
 
     # Return a message with the initial recommendation based on the risk level.
     return close(
