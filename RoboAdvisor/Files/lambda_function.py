@@ -1,8 +1,6 @@
 ### Required Libraries ###
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
-### Functionality Helper Functions ###
+
 def build_validation_result(is_valid, violated_slot, message_content):
     """
     Define a result message structured as Lex response.
@@ -15,7 +13,6 @@ def build_validation_result(is_valid, violated_slot, message_content):
         "violatedSlot": violated_slot,
         "message": {"contentType": "PlainText", "content": message_content},
     }
-
 
 ### Dialog Actions Helper Functions ###
 def get_slots(intent_request):
@@ -69,51 +66,70 @@ def close(session_attributes, fulfillment_state, message):
 
     return response
 
-
 ### Intents Handlers ###
 def recommend_portfolio(intent_request):
     """
     Performs dialog management and fulfillment for recommending a portfolio.
     """
-
+    # Gets slots' values
     first_name = get_slots(intent_request)["firstName"]
     age = get_slots(intent_request)["age"]
     investment_amount = get_slots(intent_request)["investmentAmount"]
     risk_level = get_slots(intent_request)["riskLevel"]
     source = intent_request["invocationSource"]
-
+    
     if source == "DialogCodeHook":
         # Perform basic validation on the supplied input slots.
         # Use the elicitSlot dialog action to re-prompt
         # for the first violation detected.
 
-        ###DATA VALIDATION CODE STARTS HERE ###
+        # Gets all the slots
+        slots = get_slots(intent_request)
+        validation_result = build_validation_result(True, None, None)
+        
+        #DATA VALIDATION CODE STARTS HERE ###
+        # Validate that the user age is between 0 and 65 years old    
         if age is not None:
-            if int(age) < 0 or int(age) > 65:
-                return build_validation_result(
+            if int(age)< 0 or int(age)>65:      
+                validation_result = build_validation_result(
                     False,
                     "age",
-                    "Invalid age, must be greater than zero and less than 65.",
+                    "Your age should be at in the range from 0 to 65 years old to use this service",
                 )
             
+        # Validate the investment amount, it should be > 5,000
         if investment_amount is not None:
-            investment_amount = float(investment_amount)  # Since parameters are strings it's important to cast values
-            if investment_amount < 5000:
-                return build_validation_result(
+            if int(investment_amount) < 5000:
+                validation_result = build_validation_result(
                     False,
-                    "investment_amount",
-                    "The amount to invest must be equal to or greater than 5000, please provide a valid investment amount.",
+                    "investmentAmount",
+                    "The investment amount must be atleast 5,000",
                 )
         ###DATA VALIDATION CODE ENDS HERE ###
+        
+        # If the data provided by the user is not valid,
+        # the elicitSlot dialog action is used to re-prompt for the first violation detected.
+        if not validation_result["isValid"]:
+            slots[validation_result["violatedSlot"]] = None  # Cleans invalid slot
 
+            # Returns an elicitSlot dialog to request new data for the invalid slot
+            return elicit_slot(
+                intent_request["sessionAttributes"],
+                intent_request["currentIntent"]["name"],
+                slots,
+                validation_result["violatedSlot"],
+                validation_result["message"],
+            )
+        
         # Fetch current session attibutes
         output_session_attributes = intent_request["sessionAttributes"]
-
+        
+        # Once all slots are valid, a delegate dialog is returned to Lex to choose the next course of action.
         return delegate(output_session_attributes, get_slots(intent_request))
 
     # Get the initial investment recommendation
-    initial_recommendation = "100% bonds (AGG), 0% equities (SPY)"
-    ### FINAL INVESTMENT RECOMMENDATION CODE STARTS HERE ###
+
+   ### FINAL INVESTMENT RECOMMENDATION CODE STARTS HERE ###
     risk_level = str.lower(risk_level)
     if risk_level == "none": initial_recommendation = "100% bonds (AGG), 0% equities (SPY)"
     elif risk_level == "very low": initial_recommendation = "80% bonds (AGG), 20% equities (SPY)"
@@ -136,7 +152,6 @@ def recommend_portfolio(intent_request):
             ),
         },
     )
-
 
 ### Intents Dispatcher ###
 def dispatch(intent_request):
